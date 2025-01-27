@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Controle Financeiro</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        header {
+            background-color: #4CAF50;
+            color: white;
+            padding: 15px;
+            text-align: center;
+        }
+        .container {
+            padding: 20px;
+            max-width: 800px;
+            margin: auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        table, th, td {
+            border: 1px solid #ddd;
+        }
+        th, td {
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        .form-group input, .form-group select, .form-group button {
+            width: 100%;
+            padding: 10px;
+            margin-top: 5px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .form-group button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        .form-group button:hover {
+            background-color: #45a049;
+        }
+        #chart-container {
+            margin-top: 30px;
+            text-align: center;
+        }
+        .history-table {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Sistema de Controle Financeiro</h1>
+    </header>
+    <div class="container">
+        <h2>Adicionar Receita ou Despesa</h2>
+        <form id="finance-form">
+            <div class="form-group">
+                <label for="person">Pessoa</label>
+                <select id="person" required>
+                    <option value="Wemerson">Wemerson</option>
+                    <option value="Pai">Pai</option>
+                    <option value="Mãe">Mãe</option>
+                    <option value="Paizinho">Paizinho</option>
+                    <option value="Mãezinha">Mãezinha</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="type">Tipo</label>
+                <select id="type" required>
+                    <option value="Receita">Receita</option>
+                    <option value="Despesa">Despesa</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="amount">Valor (R$)</label>
+                <input type="number" id="amount" step="0.01" required>
+            </div>
+            <div class="form-group">
+                <button type="submit">Adicionar</button>
+            </div>
+        </form>
+
+        <h2>Resumo Financeiro</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Pessoa</th>
+                    <th>Receitas (R$)</th>
+                    <th>Despesas (R$)</th>
+                    <th>Saldo (R$)</th>
+                </tr>
+            </thead>
+            <tbody id="finance-summary">
+                <!-- Linhas adicionadas dinamicamente aqui -->
+            </tbody>
+        </table>
+
+        <h3>Total Geral</h3>
+        <p id="total-summary">Receitas: R$ 0.00 | Despesas: R$ 0.00 | Saldo: R$ 0.00</p>
+
+        <div id="chart-container">
+            <canvas id="finance-chart" width="400" height="200"></canvas>
+        </div>
+
+        <h2>Histórico Individual</h2>
+        <div id="history-container">
+            <!-- Tabelas de histórico individual geradas dinamicamente -->
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        const financeData = {
+            Wemerson: { receita: 0, despesa: 0, historico: [] },
+            Pai: { receita: 0, despesa: 0, historico: [] },
+            Mãe: { receita: 0, despesa: 0, historico: [] },
+            Paizinho: { receita: 0, despesa: 0, historico: [] },
+            Mãezinha: { receita: 0, despesa: 0, historico: [] },
+        };
+
+        const form = document.getElementById('finance-form');
+        const summaryTable = document.getElementById('finance-summary');
+        const totalSummary = document.getElementById('total-summary');
+        const historyContainer = document.getElementById('history-container');
+        const chartCanvas = document.getElementById('finance-chart');
+        let financeChart;
+
+        form.addEventListener('submit', function(event) {
+            event.preventDefault();
+
+            const person = document.getElementById('person').value;
+            const type = document.getElementById('type').value;
+            const amount = parseFloat(document.getElementById('amount').value);
+
+            if (type === 'Receita') {
+                financeData[person].receita += amount;
+            } else {
+                financeData[person].despesa += amount;
+            }
+
+            financeData[person].historico.push({ tipo: type, valor: amount });
+
+            updateSummary();
+            updateChart();
+            updateHistory();
+            saveData();
+            form.reset();
+        });
+
+        function updateSummary() {
+            summaryTable.innerHTML = '';
+            let totalReceitas = 0;
+            let totalDespesas = 0;
+
+            for (const person in financeData) {
+                const { receita, despesa } = financeData[person];
+                const saldo = receita - despesa;
+
+                totalReceitas += receita;
+                totalDespesas += despesa;
+
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${person}</td>
+                    <td>${receita.toFixed(2)}</td>
+                    <td>${despesa.toFixed(2)}</td>
+                    <td>${saldo.toFixed(2)}</td>
+                `;
+                summaryTable.appendChild(row);
+            }
+
+            const totalSaldo = totalReceitas - totalDespesas;
+            totalSummary.textContent = `Receitas: R$ ${totalReceitas.toFixed(2)} | Despesas: R$ ${totalDespesas.toFixed(2)} | Saldo: R$ ${totalSaldo.toFixed(2)}`;
+        }
+
+        function updateHistory() {
+            historyContainer.innerHTML = '';
+            for (const person in financeData) {
+                const { historico } = financeData[person];
+                const historyTable = document.createElement('table');
+                historyTable.classList.add('history-table');
+                historyTable.innerHTML = `
+                    <thead>
+                        <tr>
+                            <th>Tipo</th>
+                            <th>Valor (R$)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${historico.map(item => `
+                            <tr>
+                                <td>${item.tipo}</td>
+                                <td>${item.valor.toFixed(2)}</td>
+                            </tr>
+                        `).join('') || '<tr><td colspan="2">Nenhum registro</td></tr>'}
+                    </tbody>
+                `;
+
+                const historySection = document.createElement('div');
+                historySection.innerHTML = `<h3>${person}</h3>`;
+                historySection.appendChild(historyTable);
+                historyContainer.appendChild(historySection);
+            }
+        }
+
+        function updateChart() {
+            const labels = Object.keys(financeData);
+            const receitas = labels.map(person => financeData[person].receita);
+            const despesas = labels.map(person => financeData[person].despesa);
+
+            if (financeChart) {
+                financeChart.destroy();
+            }
+
+            financeChart = new Chart(chartCanvas, {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [
+                        {
+                            label: 'Receitas',
+                            data: receitas,
+                            backgroundColor: 'rgba(75, 192, 192, 0.6)',
+                        },
+                        {
+                            label: 'Despesas',
+                            data: despesas,
+                            backgroundColor: 'rgba(255, 99, 132, 0.6)',
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `${context.dataset.label}: R$ ${context.raw.toFixed(2)}`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function saveData() {
+            localStorage.setItem('financeData', JSON.stringify(financeData));
+        }
+
+        function loadData() {
+            const savedData = localStorage.getItem('financeData');
+            if (savedData) {
+                Object.assign(financeData, JSON.parse(savedData));
+            }
+        }
+
+        loadData();
+        updateSummary();
+        updateHistory();
+        updateChart();
+    </script>
+</body>
+</html>
